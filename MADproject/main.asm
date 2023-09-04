@@ -12,8 +12,6 @@
             .data                           ; Assemble into program memory.
                                             ; and retain current section.
 mad:		.space	2 ;reserve space for mad
-average 	.space  2 ;reserve space for variable to help calculate MAD
-distances 	.word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;reserve space for another array to hold distances from avg
 ;-------------------------------------------------------------------------------
 
             .text                         ; Assemble into program memory.
@@ -35,55 +33,52 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ;-------------------------------------------------------------------------------
 
 		mov.w #0, R4 ;used for indexing
-		mov.w #0, R5 ;used to represent 0 later on
+		mov.w #0, R5 ;used to represent average value
+		mov.w #0, R6 ;used to help calculate mad
+		mov.w #0, R7 ;used to represent 0
 
-read_from_array:
+read_from_array:	;sums all the values into R5
 		add.w   samples(R4), average ;summing up all the values
 
 proceed_to_next:
 		incd.w R4 ;double increment for word array
-		cmp.w 	#32, R4 ;word array take up 2 memory slots so needs to be double
-		jlo		read_from_array ;if not at 32 or more loop continues
+		cmp.w 	#32, R4 ;word array takes up 2 memory slots so needs to be double
+			jlo		read_from_array ;if not at 32 or more loop continues
 
-		rra.w average ;takes average (dividing by 16) by shifting to right 4 times
-		rra.w average
-		rra.w average
-		rra.w average
+		rra.w R5 ;takes average (dividing by 16) by shifting to right 4 times
+		rra.w R5
+		rra.w R5
+		rra.w R5
 
 		clr.w R4 ;clearing for further use
 
-read_from_array2:
-		mov.w samples(R4), distances(R4) ;moving all of the distances of each value from avg to another array
-		sub.w average, distances(R4) ;subtracting each distance from avg
+move_and_divide: ;sums up all the values' distances from the mean into mad
 
+		add.w samples(R4), R6
+		sub.w R5, R6 ;subtracting from each value the average
+		cmp.w R7, R6 ;R7 is 0, we are checking if the number is above or below 0
+			jl if_negative ;skips to if negative
+		add.w R5, mad ;if positive goes here and adds up everything to mad
+		jmp proceed_to_next2 ;if skip over negative condition
+if_negative:
+	sub.w R5, mad
 
 proceed_to_next2:
-		incd.w R4 ;word array take up 2 memory slots so needs to be double
-		cmp.w 	#32, R4 ;word array take up 2 memory slots so needs to be double
-		jlo		read_from_array2 ;if not at 32 or more loop continues
+	incd.w R4 ;double increment for word array
+	mov.w #0, R6 ;want to clear R5 every iteration
+	cmp.w #32, R4 ;word array takes up 2 memory slots so it needs to be double the size of our array
+		jlo 	move_and_divide ;if less than 32 (R increments twice) we go back to move_and_divde)
 
-		clr.w R4 ;clearing for further use
+	rra.w mad ;takes average (dividing by 16) by shifting to right 4 times
+	rra.w mad
+	rra.w mad
+	rra.w mad
 
+	clr.w 	R5 ;free up space
+	clr.w 	R6
+	clr.w 	R4
 
-read_from_array3:
-		cmp.w	R5, distances(R4) ;comparing distance value to 0
-		jl	 	label2 ;if negative
-		add.w   distances(R4), mad ;summing up all the values into mad
-		jmp 	proceed_to_next3 ;skip over case where it is negative
-label2:
-		sub.w   distances(R4), mad ;if negative then -- is technically add
-
-proceed_to_next3:
-		incd.w R4  ;word array take up 2 memory slots so needs to be double
-		cmp.w 	#32, R4 ;word array take up 2 memory slots so needs to be double
-		jlo		read_from_array3 ;if not at 32 or more loop continues
-
-		rra.w mad ;takes average (dividing by 16) by shifting to right 4 times , giving us our desired MAD
-		rra.w mad
-		rra.w mad
-		rra.w mad
-
-main:		jmp 	main
+main:		jmp 	main ;closing loop
 					nop
 
 
