@@ -69,56 +69,32 @@ P1_ISR:
 
 		; check source of interrupt
 		bit.b #BIT1, &P1IFG
-		;jnc		check_S2
-		jnc		return
+		jnc		check_S2
+		
 
 		inc.w	count
 
 		;bic.b #BIT1, &P1IFG ; clear interrupt flag
-		jmp		delay
+		jmp		return
 
-		xor.b #BIT0, &P1OUT
+check_S2:
 
+		bit.b #BIT2, &P1IFG ;check source of interrupt
+		jnc		return
 
+loop:
+		cmp.w #0, count ;if 0
+		jeq		return ;if zero jump to return
 
-;check_S2:
+		xor.b #BIT7, &P9OUT ; toggle green light
+		xor.b #BIT0, &P1OUT ; toggle red light
 
-		;bit.b #BIT2, &P1IFG ;check source of interrupt
-		;jnc		return
+		call #delay ;delay
 
-;loop:
-		;cmp.w #0, count ;if 0
-		;jeq		return ;if zero jump to return
+		xor.b #BIT0, &P1OUT ; toggle red light
+		xor.b #BIT7, &P9OUT ; toggle green light
 
-
-
-	;	xor.b #BIT0, &P1OUT ; toggle red light
-
-	;	call #delay ;delay
-
-
-	;	xor.b #BIT0, &P1OUT ; toggle red light
-
-	;	call #delay ;delay
-
-	;	xor.b #BIT0, &P1OUT ; toggle red light
-
-	;	call #delay ;delay
-
-	;	xor.b #BIT0, &P1OUT ; toggle red light
-
-	;	call #delay ;delay
-
-	;	xor.b #BIT7, &P9OUT ; toggle green light
-
-	;	call #delay ;delay
-
-	;	xor.b #BIT7, &P9OUT ; toggle green light
-
-		;xor.b #BIT7, &P9OUT ; toggle green light
-		;xor.b #BIT0, &P1OUT ; toggle red light
-
-		;call #delay ;delay
+		call #delay ;delay
 
 		;dec.w	count ;decrement until hits 0
 		;jmp		loop ;jump back into our loop
@@ -127,7 +103,6 @@ P1_ISR:
 
 return:
 		bic.b #BIT1|BIT2, &P1IFG ; clear interrupt flags
-
 
 
 		reti
